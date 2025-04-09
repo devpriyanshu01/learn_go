@@ -7,6 +7,9 @@ const PORT = 3000;
 // Middleware to parse JSON bodies
 app.use(express.json());
 
+// Middleware to parse application/x-www-form-urlencoded
+app.use(express.urlencoded({ extended: true }));
+
 // Sample GET route
 app.get('/', (req, res) => {
   res.send('Hello, world!');
@@ -30,6 +33,12 @@ app.post('/users', (req, res) => {
   // Here you'd normally save the user to a database
   res.status(201).json({ message: 'User created', user: { username, email } });
 });
+
+app.post('/postform', (req, res) => {
+  res.status(200).send(JSON.stringify(req.body))
+})
+
+
 
 // Start server
 app.listen(PORT, () => {
