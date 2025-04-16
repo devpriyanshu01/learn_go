@@ -89,6 +89,8 @@ func createOneCourse(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
+	//generate unique id, string
+	//append course into courses
 	rand.Seed(time.Now().UnixNano())
 	course.CourseId = strconv.Itoa(rand.Intn(100))
 
