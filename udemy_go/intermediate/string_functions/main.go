@@ -102,6 +102,4 @@ func main() {
 	result = builder.String()
 	fmt.Println("After restting the builder =>", result)
 
-
-
 }
