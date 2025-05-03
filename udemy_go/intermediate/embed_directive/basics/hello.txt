@@ -1,0 +1,3 @@
+Hello Golang!
+
+Hari Bol!!!
