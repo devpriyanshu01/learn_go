@@ -1,0 +1,4 @@
+WARN: 2025/05/05 13:00:05 logging.go:39: This is a warning messasge.
+INFO: 2025/05/05 13:00:05 logging.go:40: This is an Info messasge.
+ERROR: 2025/05/05 13:00:05 logging.go:41: This is an error messasge.
+DEBUG: 2025/05/05 13:00:05 logging.go:42: This is a debug messasge.
