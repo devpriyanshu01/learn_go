@@ -8,13 +8,13 @@ import (
 
 type Person struct {
 	FirstName string `json:"first_name"`
-	Age       int    `json:"age"`
-	EmailAddress string `json:"email,omitentry"`
-	Address	Address	`json:"address,omitentry"`
+	Age       int    `json:"age,omitempty"`
+	EmailAddress string `json:"email,omitempty"`
+	Address	Address	`json:"address,omitempty"`
 }
 type Address struct {
-	City string `json:"city"`
-	State string `json:"state"`
+	City string `json:"city,omitempty"`
+	State string `json:"state,omitempty"`
 }
 
 func main() {
