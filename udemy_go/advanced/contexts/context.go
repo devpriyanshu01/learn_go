@@ -37,6 +37,7 @@ func main() {
 		cancel()
 	}()
 
+
 	ctx = context.WithValue(ctx, "requestId", "akdfjowjfasdfffsls")
 
 	// go doWork(ctx)
