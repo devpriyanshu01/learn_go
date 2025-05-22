@@ -16,7 +16,7 @@ func StartRoutine(sw *statefulWorker) {
 			select {
 			case receiver := <-sw.ch:
 				sw.count += receiver
-				fmt.Println("Update Value of Count:", sw.count)
+				fmt.Println("Updated Value of Count:", sw.count)
 			default:
 			}
 		}
