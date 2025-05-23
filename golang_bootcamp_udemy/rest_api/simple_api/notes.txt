@@ -1,6 +1,4 @@
-package main
 
-func main(){
 // Packages & Modules in Go
 
 // Every Go file belongs to a package & each package can be imported by other package.
@@ -20,4 +18,3 @@ func main(){
 // 3. go mod tidy - removes installed package which are not required
 // 4. go run 
 // 5. go build
-}
