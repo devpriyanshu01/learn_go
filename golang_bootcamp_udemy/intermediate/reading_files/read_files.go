@@ -9,7 +9,7 @@ import (
 func main() {
 	fmt.Println("----- Reading Files in Golang ------")
 
-	// content, err := os.ReadFile("output.txt")
+	content, err := os.ReadFile("output.txt")
 	// if err != nil {
 	// 	fmt.Println("error reading file:", err)
 	// 	return
