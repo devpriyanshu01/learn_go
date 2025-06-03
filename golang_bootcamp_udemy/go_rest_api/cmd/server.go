@@ -45,14 +45,26 @@ func teacherHandler(w http.ResponseWriter, r *http.Request) {
 	// }
 	switch r.Method {
 	case http.MethodGet:
+		//path parameters
+		//teachers/{id}  <-- path parameter
+		//teachers/?id=23&name=raman&age=20
 		fmt.Println(r.URL.Path)
 		path := strings.TrimPrefix(r.URL.Path, "/teachers/")
 		pathParam := strings.TrimPrefix(path, "/")
 		fmt.Println("path param:", pathParam)
 		w.Write([]byte("get method /teachers handled"))
+
+		//query parameters
+		//teachers/?id=23&name=raman&age=20
+		queryParameters := r.URL.Query()
+		fmt.Println("printing query params received")
+		fmt.Println(queryParameters.Get("id"))
+		fmt.Println(queryParameters.Get("name"))
+		fmt.Println(queryParameters.Get("age"))
+		
 	case http.MethodPost:
 		fmt.Fprintf(w, "post method /teachers")
-	}
+	} 
 }
 
 func studentHandler(w http.ResponseWriter, r *http.Request) {
