@@ -1,11 +1,13 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	middleware "restapi/internal/api/middlewares"
 	"strings"
 )
 
@@ -18,16 +20,36 @@ type user struct {
 func main() {
 	port := ":3001"
 
-	http.HandleFunc("/", rootHandler)
+	cert := "cert.pem"
+	key := "key.pem"
 
-	http.HandleFunc("/teachers/", teacherHandler)
+	mux := http.NewServeMux()
 
-	http.HandleFunc("/students/", studentHandler)
+	mux.HandleFunc("/", rootHandler)
 
-	http.HandleFunc("/execs/", execHandler)
+	mux.HandleFunc("/teachers/", teacherHandler)
+
+	mux.HandleFunc("/students/", studentHandler)
+
+	mux.HandleFunc("/execs/", execHandler)
+
+	//Configuring TLS handshake begins.
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+	}
+
+	//create custom server
+	server := &http.Server{
+		Addr: port,
+		// Handler: mux,
+		Handler:   middleware.SecurityHeaders(mux),
+		TLSConfig: tlsConfig,
+	}
 
 	fmt.Println("server is running on port:", port)
-	err := http.ListenAndServe(port, nil)
+	// err := http.ListenAndServe(port, nil)
+	err := server.ListenAndServeTLS(cert, key)
+	//configuring tls handshake ends.
 	if err != nil {
 		log.Fatalln("Error starting the server", err)
 	}
@@ -61,10 +83,10 @@ func teacherHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(queryParameters.Get("id"))
 		fmt.Println(queryParameters.Get("name"))
 		fmt.Println(queryParameters.Get("age"))
-		
+
 	case http.MethodPost:
 		fmt.Fprintf(w, "post method /teachers")
-	} 
+	}
 }
 
 func studentHandler(w http.ResponseWriter, r *http.Request) {
