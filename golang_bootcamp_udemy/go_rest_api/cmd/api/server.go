@@ -53,7 +53,9 @@ func main() {
 		Addr: port,
 		// Handler: mux,
 		// Handler:   rl.Middleware(mw.SecurityHeaders(mux)),
-		Handler:   mw.Hpp(hppOptions)(rl.Middleware(mw.SecurityHeaders(mux))),
+		Handler:   mw.Cors(rl.Middleware(mw.ResponseTimeMiddleware(mw.SecurityHeaders(mw.Compression(mw.Hpp(hppOptions)(mux)))))),
+		
+		// Handler:   mw.Hpp(hppOptions)(rl.Middleware(mw.Compression(mw.ResponseTimeMiddleware(mw.SecurityHeaders(mux))))),
 		// Handler:   middlewares.Cors(mux),
 		// Handler: middlewares.ResponseTimeMiddleware(mux),
 		// Handler: middlewares.Compression(mux),

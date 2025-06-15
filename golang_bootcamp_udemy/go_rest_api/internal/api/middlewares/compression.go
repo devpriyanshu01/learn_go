@@ -26,7 +26,7 @@ func Compression(next http.Handler) http.Handler {
 		w = &gzipResponseWriter{ResponseWriter: w, Writer: gz}
 
 		next.ServeHTTP(w, r)
-		fmt.Println("Sent response from Compression Middleware")
+		fmt.Println("Compression middleware ends.")
 	})
 }
 

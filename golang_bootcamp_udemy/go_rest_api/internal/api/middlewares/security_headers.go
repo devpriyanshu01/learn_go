@@ -1,9 +1,14 @@
 package middlewares
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+)
 
 func SecurityHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc( func(w http.ResponseWriter, r *http.Request){
+	fmt.Println("Security Headers Middleware...")
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("Security Headers Middleware beging returns...")
 		w.Header().Set("X-DNS-Prefetch-Control", "off") //blocks DNS resolution
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("X-XSS-Protection", "nosniff") //disable cross site scripting
@@ -19,11 +24,12 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("Cross-Origin-Embedder-Policy", "require-corp")
 		w.Header().Set("Permissions-Policy", "geolocation=(self), microphone=()")
 		next.ServeHTTP(w, r)
+		fmt.Println("Security Headers Middleware ends.")
 	})
 }
 
 //Below is basic template for all middlewares.
-/* 
+/*
 func SecurityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc( func(w http.ResponseWriter, r *http.Request){
 

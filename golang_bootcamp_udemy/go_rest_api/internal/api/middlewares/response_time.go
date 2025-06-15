@@ -24,7 +24,8 @@ func ResponseTimeMiddleware(next http.Handler) http.Handler {
 		// Log the request details
 		duration = time.Since(start)
 		fmt.Printf("Method: %s, URL: %s, Status: %d, Duration: %v\n", r.Method, r.URL, wrappedWriter.status, duration.String())
-		fmt.Println("Sent Response from Response Time Middleware")
+		fmt.Println("Response Time Middleware Ends.")
+
 	})
 }
 
