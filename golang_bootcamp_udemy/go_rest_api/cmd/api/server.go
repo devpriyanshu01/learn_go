@@ -2,7 +2,7 @@ package main
 
 import (
 	"crypto/tls"
-	"encoding/json"
+	// "encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -41,11 +41,19 @@ func main() {
 
 	rl := mw.NewRateLimiter(5, time.Second*30)
 
+	hppOptions := mw.HPPOptions{
+		CheckQuery:                  true,
+		CheckBody:                   true,
+		CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
+		Whitelist:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
+	}
+
 	//create custom server
 	server := &http.Server{
 		Addr: port,
 		// Handler: mux,
-		Handler:   rl.Middleware(mw.SecurityHeaders(mux)),
+		// Handler:   rl.Middleware(mw.SecurityHeaders(mux)),
+		Handler:   mw.Hpp(hppOptions)(rl.Middleware(mw.SecurityHeaders(mux))),
 		// Handler:   middlewares.Cors(mux),
 		// Handler: middlewares.ResponseTimeMiddleware(mux),
 		// Handler: middlewares.Compression(mux),
@@ -62,7 +70,6 @@ func main() {
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
-	// fmt.Fprintf(w, "This is root route.")
 	w.Write([]byte("This is root route"))
 }
 
@@ -124,7 +131,6 @@ func studentHandler(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		fmt.Println("Read Body:", string(body))
 		var user1 user
-		err = json.Unmarshal(body, &user1)
 		fmt.Println("user1:", user1)
 
 		//see all what we get in request i.e. r
@@ -154,5 +160,12 @@ func studentHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func execHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("execs route"))
+	switch r.Method {
+	case http.MethodPost:
+		w.Write([]byte("inside /exec - post method"))
+		query := r.URL.Query()
+		fmt.Println("Query Received:", query)
+		fmt.Println("name", query.Get("name"))
+		fmt.Println("name", query.Get("age"))
+	}
 }
