@@ -3,8 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"encoding/json"
-	"strconv"
-	"strings"
+	"sync"
 
 	// "encoding/json"
 	"fmt"
@@ -97,22 +96,22 @@ func teacherHandler(w http.ResponseWriter, r *http.Request) {
 		getTeachersHandler(w, r)
 
 	case http.MethodPost:
-		fmt.Fprintf(w, "post method /teachers")
+		addTeacherHandler(w, r)
 	}
 }
 
 // Creating a Teacher Struct for in-memory Teacher database.
 type Teacher struct {
-	ID        int
-	FirstName string
-	LastName  string
-	Class     string
-	Subject   string
+	ID        int    `json:"id,omitempty"`
+	FirstName string `json:"first_name,omitempty"`
+	LastName  string `json:"last_name,omitempty"`
+	Class     string `json:"class,omitempty"`
+	Subject   string `json:"subject,omitempty"`
 }
 
 var teachers = make(map[int]Teacher)
 
-// var mutex = &sync.Mutex{}
+var mutex = &sync.Mutex{}
 var nextID = 1
 
 // initialize some dummy teachers data.
@@ -132,25 +131,62 @@ func init() {
 		Class:     "9C",
 		Subject:   "Physics",
 	}
+	nextID++
 }
 
-func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
-	trimmedValue := strings.TrimPrefix(r.URL.Path, "/teachers/")
-	id := strings.TrimSuffix(trimmedValue, "/")
-	teacherID, err := strconv.Atoi(id)
+func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	var newTeachers []Teacher
+	err := json.NewDecoder(r.Body).Decode(&newTeachers)
 	if err != nil {
-		fmt.Println("err", err)
+		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
+		fmt.Println("error occured ===>>", err)
 		return
 	}
 
+	addedTeachers := make([]Teacher, len(newTeachers))
+
+	for i, newTeacher := range newTeachers {
+		newTeacher.ID = nextID
+		teachers[nextID] = newTeacher
+		addedTeachers[i] = newTeacher
+		nextID++
+	}
+
+	response := struct {
+		Status string    `json:"status"`
+		Count  int       `json:"count"`
+		Data   []Teacher `json:"data"`
+	}{
+		Status: "success",
+		Count:  len(addedTeachers),
+		Data:   addedTeachers,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
+	// trimmedValue := strings.TrimPrefix(r.URL.Path, "/teachers/")
+	// id := strings.TrimSuffix(trimmedValue, "/")
+	// teacherID, err := strconv.Atoi(id)
+	// if err != nil {
+	// 	fmt.Println("err", err)
+	// 	return
+	// }
 
 	teachersList := make([]Teacher, 0, len(teachers))
 
 	for _, teacher := range teachers {
-		// teachersList = append(teachersList, teacher)
-		if teacher.ID ==  teacherID{
-			teachersList = append(teachersList, teacher)
-		}
+		teachersList = append(teachersList, teacher)
+		// if teacher.ID == teacherID {
+		// 	teachersList = append(teachersList, teacher)
+		// }
 	}
 
 	response := struct {
