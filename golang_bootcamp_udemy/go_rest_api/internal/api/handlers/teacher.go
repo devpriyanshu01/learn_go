@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"restapi/internal/models"
 	"restapi/internal/repository/sqlconnect"
+	"strconv"
+	"strings"
 )
 
 var teachers = make(map[int]models.Teacher)
@@ -35,7 +38,7 @@ func init() {
 func TeacherHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		getTeachersHandler(w, r)
+		getTeacherHandler(w, r)
 
 	case http.MethodPost:
 		addTeacherHandler(w, r)
@@ -43,7 +46,7 @@ func TeacherHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
-	db, err := sqlconnect.ConnectDb()
+	db, err := sqlconnect.ConnectDb() //connect to db
 	if err != nil {
 		http.Error(w, "Error Connecting to Database", http.StatusInternalServerError)
 		return
@@ -59,7 +62,6 @@ func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// var addedTeachers []models.Teacher
 	addedTeachers := make([]models.Teacher, len(newTeachers))
 
 	//prepare the sql query
@@ -83,6 +85,7 @@ func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		addedTeachers[i] = newTeachers[i]
 		addedTeachers[i].ID = int(insertedTeacherID)
+
 	}
 
 	response := struct {
@@ -101,32 +104,43 @@ func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
-	// trimmedValue := strings.TrimPrefix(r.URL.Path, "/teachers/")
-	// id := strings.TrimSuffix(trimmedValue, "/")
-	// teacherID, err := strconv.Atoi(id)
-	// if err != nil {
-	// 	fmt.Println("err", err)
-	// 	return
-	// }
+func getTeacherHandler(w http.ResponseWriter, r *http.Request) {
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		http.Error(w, "Error connecting to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
 
-	teachersList := make([]models.Teacher, 0, len(teachers))
+	trimmedValue := strings.TrimPrefix(r.URL.Path, "/teachers/")
+	id := strings.TrimSuffix(trimmedValue, "/")
+	teacherID, err := strconv.Atoi(id)
+	if err != nil {
+		fmt.Println("err", err)
+		return
+	}
+	fmt.Println("received teacherId:", teacherID)
 
-	for _, teacher := range teachers {
-		teachersList = append(teachersList, teacher)
-		// if teacher.ID == teacherID {
-		// 	teachersList = append(teachersList, teacher)
-		// }
+	var teacher models.Teacher
+
+	// err = db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", teacherID).Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email, &teacher.Class, &teacher.Subject)
+	err = db.QueryRow("SELECT id, first_name, last_name, email FROM teachers WHERE id = ?", teacherID).Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email)
+	
+	if err == sql.ErrNoRows {
+		http.Error(w, "teacher not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		http.Error(w, "Error searching a teacher", http.StatusInternalServerError)
+		fmt.Println("error:---", err)
+		return
 	}
 
 	response := struct {
-		Status string           `json:"status"`
-		Count  int              `json:"count"`
-		Data   []models.Teacher `json:"data"`
+		Status string         `json:"status"`
+		Data   models.Teacher `json:"data"`
 	}{
 		Status: "success",
-		Count:  len(teachersList),
-		Data:   teachersList,
+		Data:   teacher,
 	}
 	//set content type
 	w.Header().Set("Content-Type", "application/json")
