@@ -114,33 +114,73 @@ func getTeacherHandler(w http.ResponseWriter, r *http.Request) {
 
 	trimmedValue := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	id := strings.TrimSuffix(trimmedValue, "/")
-	teacherID, err := strconv.Atoi(id)
-	if err != nil {
-		fmt.Println("err", err)
-		return
-	}
-	fmt.Println("received teacherId:", teacherID)
 
-	var teacher models.Teacher
+	//get query params
+	firstName := r.URL.Query().Get("first_name")
+	lastName := r.URL.Query().Get("last_name")
 
-	// err = db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", teacherID).Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email, &teacher.Class, &teacher.Subject)
-	err = db.QueryRow("SELECT id, first_name, last_name, email FROM teachers WHERE id = ?", teacherID).Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email)
-	
-	if err == sql.ErrNoRows {
-		http.Error(w, "teacher not found", http.StatusNotFound)
-		return
-	} else if err != nil {
-		http.Error(w, "Error searching a teacher", http.StatusInternalServerError)
-		fmt.Println("error:---", err)
-		return
+	//save fetched rows to a variable
+	var teachersList []models.Teacher
+
+	//get multiple teachers.
+	if id == "" {
+		query := "SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE 1=1"
+		
+		var args []interface{}
+		if firstName != "" {
+			query = query + " AND first_name = ?"
+			args = append(args, firstName)
+		}
+		if lastName != "" {
+			query = query + " AND last_name = ?"
+			args = append(args, lastName)
+		}
+
+		sqlRows, err := db.Query(query, args...)
+		if err != nil {
+			http.Error(w, "Error fetching teachers", http.StatusInternalServerError)
+			fmt.Println("Error:----", err)
+			return
+		}
+		defer sqlRows.Close()
+
+		for sqlRows.Next() {
+			var tchr models.Teacher
+			sqlRows.Scan(&tchr.ID, &tchr.FirstName, &tchr.LastName, &tchr.Email, &tchr.Class, &tchr.Subject)
+			teachersList = append(teachersList, tchr)
+		}
+	} else {
+		teacherID, err := strconv.Atoi(id)
+		if err != nil {
+			fmt.Println("err", err)
+			return
+		}
+
+		var teacher models.Teacher
+
+		// err = db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", teacherID).Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email, &teacher.Class, &teacher.Subject)
+		err = db.QueryRow("SELECT id, first_name, last_name, email FROM teachers WHERE id = ?", teacherID).Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email)
+
+		if err == sql.ErrNoRows {
+			http.Error(w, "teacher not found", http.StatusNotFound)
+			return
+		} else if err != nil {
+			http.Error(w, "Error searching a teacher", http.StatusInternalServerError)
+			fmt.Println("error:---", err)
+			return
+		}
+		teachersList = append(teachersList, teacher)
+
 	}
 
 	response := struct {
-		Status string         `json:"status"`
-		Data   models.Teacher `json:"data"`
+		Status string           `json:"status"`
+		Count  int              `json:"count"`
+		Data   []models.Teacher `json:"data"`
 	}{
 		Status: "success",
-		Data:   teacher,
+		Data:   teachersList,
+		Count: len(teachersList),
 	}
 	//set content type
 	w.Header().Set("Content-Type", "application/json")
