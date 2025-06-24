@@ -11,37 +11,15 @@ import (
 	"strings"
 )
 
-var teachers = make(map[int]models.Teacher)
-
-var nextID = 1
-
-// initialize some dummy teachers data.
-func init() {
-	teachers[nextID] = models.Teacher{
-		ID:        nextID,
-		FirstName: "John",
-		LastName:  "Doe",
-		Class:     "9F",
-		Subject:   "Maths",
-	}
-	nextID++
-	teachers[nextID] = models.Teacher{
-		ID:        nextID,
-		FirstName: "Karl",
-		LastName:  "Marx",
-		Class:     "9C",
-		Subject:   "Physics",
-	}
-	nextID++
-}
 
 func TeacherHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		getTeacherHandler(w, r)
-
 	case http.MethodPost:
 		addTeacherHandler(w, r)
+	case http.MethodPut:
+		updateTeacher(w,r)
 	}
 }
 
@@ -159,7 +137,7 @@ func getTeacherHandler(w http.ResponseWriter, r *http.Request) {
 		var teacher models.Teacher
 
 		// err = db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", teacherID).Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email, &teacher.Class, &teacher.Subject)
-		err = db.QueryRow("SELECT id, first_name, last_name, email FROM teachers WHERE id = ?", teacherID).Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email)
+		err = db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", teacherID).Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email, &teacher.Class, &teacher.Subject)
 
 		if err == sql.ErrNoRows {
 			http.Error(w, "teacher not found", http.StatusNotFound)
@@ -170,7 +148,6 @@ func getTeacherHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		teachersList = append(teachersList, teacher)
-
 	}
 
 	response := struct {
@@ -216,4 +193,60 @@ func validateSortingField(splittedValue []string) bool{
 		}
 	}
 	return false
+}
+
+// PUT - means to update complete row
+func updateTeacher(w http.ResponseWriter, r *http.Request) {
+	reqUrl := r.URL.Path
+	idStr := strings.TrimPrefix(reqUrl, "/teachers/")
+	fmt.Println("id", idStr)
+	teacherId, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid Teacher ID", http.StatusBadRequest)
+		return
+	}
+
+	var receivedTeacher models.Teacher
+	err = json.NewDecoder(r.Body).Decode(&receivedTeacher)
+	if err != nil {
+		http.Error(w, "Error Decoding Sent Body", http.StatusBadRequest)
+		return
+	}
+	fmt.Println("received teacher", receivedTeacher)
+
+	//connect to Database
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		http.Error(w, "Error Connecting to Database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	var existingTeacher models.Teacher
+	err = db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", teacherId).Scan(&existingTeacher.ID, &existingTeacher.FirstName, &existingTeacher.LastName, &existingTeacher.Email, &existingTeacher.Class, &existingTeacher.Subject)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Teacher with given ID not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Error fetching the database with given teacherID", http.StatusInternalServerError)
+		return
+	}
+	fmt.Println("existing teacher=>", existingTeacher)
+
+	//udpate the teacher in database
+	_, err = db.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?", receivedTeacher.FirstName, receivedTeacher.LastName, receivedTeacher.Email, receivedTeacher.Class, receivedTeacher.Subject, existingTeacher.ID)
+	if err != nil {
+		http.Error(w, "Error updating teacher to database", http.StatusInternalServerError)
+		fmt.Println("err======", err)
+		return
+	}
+
+	response := struct {
+		Status string `json:"status"`
+	}{
+		Status : "success, Teacher was udpdated",
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
