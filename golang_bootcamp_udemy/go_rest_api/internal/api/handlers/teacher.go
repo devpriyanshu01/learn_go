@@ -105,6 +105,7 @@ func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getTeacherHandler(w http.ResponseWriter, r *http.Request) {
+	//connect to database
 	db, err := sqlconnect.ConnectDb()
 	if err != nil {
 		http.Error(w, "Error connecting to database", http.StatusInternalServerError)
@@ -112,30 +113,29 @@ func getTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
+	//try to get the teacherID
 	trimmedValue := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	id := strings.TrimSuffix(trimmedValue, "/")
-
-	//get query params
-	firstName := r.URL.Query().Get("first_name")
-	lastName := r.URL.Query().Get("last_name")
 
 	//save fetched rows to a variable
 	var teachersList []models.Teacher
 
-	//get multiple teachers.
+	//get multiple teachers as teacherID was not sent.
 	if id == "" {
 		query := "SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE 1=1"
-		
+
 		var args []interface{}
-		if firstName != "" {
-			query = query + " AND first_name = ?"
-			args = append(args, firstName)
-		}
-		if lastName != "" {
-			query = query + " AND last_name = ?"
-			args = append(args, lastName)
+		query, args = addFilters(query, r, args) //add filters functionality
+
+		//add sorting functionality
+		sortby := r.URL.Query().Get("sortby")
+		splittedValue := strings.Split(sortby, ":")
+
+		if len(splittedValue) >= 2 && validateSortingField(splittedValue) {
+			query = query + " ORDER BY " + splittedValue[0] + " " + splittedValue[1]
 		}
 
+		//query the database
 		sqlRows, err := db.Query(query, args...)
 		if err != nil {
 			http.Error(w, "Error fetching teachers", http.StatusInternalServerError)
@@ -149,7 +149,7 @@ func getTeacherHandler(w http.ResponseWriter, r *http.Request) {
 			sqlRows.Scan(&tchr.ID, &tchr.FirstName, &tchr.LastName, &tchr.Email, &tchr.Class, &tchr.Subject)
 			teachersList = append(teachersList, tchr)
 		}
-	} else {
+	} else { //since teacherID was sent, find the teacher with given ID
 		teacherID, err := strconv.Atoi(id)
 		if err != nil {
 			fmt.Println("err", err)
@@ -180,10 +180,40 @@ func getTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	}{
 		Status: "success",
 		Data:   teachersList,
-		Count: len(teachersList),
+		Count:  len(teachersList),
 	}
 	//set content type
 	w.Header().Set("Content-Type", "application/json")
 	//encode data to json
 	json.NewEncoder(w).Encode(response)
+}
+
+func addFilters(query string, r *http.Request, args []interface{}) (string, []interface{}) {
+	params := map[string]string{
+		"first_name": "first_name",
+		"last_name":  "last_name",
+		"email":      "email",
+		"class":      "class",
+		"subject":    "subject",
+	}
+	//extract sent query params
+	for key, value := range params {
+		col := r.URL.Query().Get(key)
+		if col != "" {
+			query = query + " AND " + value + " = ?"
+			args = append(args, col)
+		}
+	}
+	return query, args
+}
+
+func validateSortingField(splittedValue []string) bool{
+	//validate the sent sorting field.
+	colFields := []string{"first_name", "last_name", "email", "class", "subject"}
+	for _, field := range colFields {
+		if splittedValue[0] == field {
+			return true
+		}
+	}
+	return false
 }
