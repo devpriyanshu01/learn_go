@@ -11,7 +11,6 @@ import (
 	"strings"
 )
 
-
 func TeacherHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -19,8 +18,11 @@ func TeacherHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		addTeacherHandler(w, r)
 	case http.MethodPut:
-		updateTeacher(w,r)
+		updateTeacher(w, r)
+	case http.MethodPatch:
+		updateTeacherFields(w, r)
 	}
+
 }
 
 func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
@@ -184,7 +186,7 @@ func addFilters(query string, r *http.Request, args []interface{}) (string, []in
 	return query, args
 }
 
-func validateSortingField(splittedValue []string) bool{
+func validateSortingField(splittedValue []string) bool {
 	//validate the sent sorting field.
 	colFields := []string{"first_name", "last_name", "email", "class", "subject"}
 	for _, field := range colFields {
@@ -212,7 +214,6 @@ func updateTeacher(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error Decoding Sent Body", http.StatusBadRequest)
 		return
 	}
-	fmt.Println("received teacher", receivedTeacher)
 
 	//connect to Database
 	db, err := sqlconnect.ConnectDb()
@@ -232,21 +233,83 @@ func updateTeacher(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error fetching the database with given teacherID", http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("existing teacher=>", existingTeacher)
 
 	//udpate the teacher in database
 	_, err = db.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?", receivedTeacher.FirstName, receivedTeacher.LastName, receivedTeacher.Email, receivedTeacher.Class, receivedTeacher.Subject, existingTeacher.ID)
 	if err != nil {
 		http.Error(w, "Error updating teacher to database", http.StatusInternalServerError)
-		fmt.Println("err======", err)
 		return
 	}
 
 	response := struct {
 		Status string `json:"status"`
 	}{
-		Status : "success, Teacher was udpdated",
+		Status: "success, Teacher was udpdated",
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func updateTeacherFields(w http.ResponseWriter, r *http.Request) {
+	//get the sent id in url
+	reqUrl := r.URL.Path
+	idStr := strings.TrimPrefix(reqUrl, "/teachers/")
+	teacherID, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Error Parsing the sent teacher ID", http.StatusBadRequest)
+		return
+	}
+
+	var toUpdate map[string]interface{}
+	err = json.NewDecoder(r.Body).Decode(&toUpdate)
+	if err != nil {
+		http.Error(w, "Invalid Request Payload", http.StatusBadRequest)
+		return
+	}
+	fmt.Println("to udpate", toUpdate)
+
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		http.Error(w, "Error connecting to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	var existingTeacher models.Teacher
+	err = db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", teacherID).Scan(
+		&existingTeacher.ID, &existingTeacher.FirstName, &existingTeacher.LastName, &existingTeacher.Email, &existingTeacher.Class, &existingTeacher.Subject)
+	if err == sql.ErrNoRows {
+		http.Error(w, "No teacher found with ID sent", http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Error fetching teacher from database", http.StatusInternalServerError)
+		return
+	}
+
+	//update the existing teacher data with new values.
+	for field, value := range toUpdate {
+		switch field {
+		case "first_name":
+			existingTeacher.FirstName = value.(string)
+		case "last_name":
+			existingTeacher.LastName = value.(string)
+		case "email":
+			existingTeacher.Email = value.(string)
+		case "class":
+			existingTeacher.Class = value.(string)
+		case "subject":
+			existingTeacher.Subject = value.(string)
+		}
+	}
+
+	//update to database
+	_, err = db.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?", existingTeacher.FirstName, existingTeacher.LastName, existingTeacher.Email, existingTeacher.Class, existingTeacher.Subject, existingTeacher.ID)
+	if err != nil {
+		http.Error(w, "Error updating data to database", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(existingTeacher)
 }
