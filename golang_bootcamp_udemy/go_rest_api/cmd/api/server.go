@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"restapi/internal/api/handlers"
 	mw "restapi/internal/api/middlewares"
+	"restapi/internal/api/router"
 	"restapi/internal/repository/sqlconnect"
 
 	"github.com/joho/godotenv"
@@ -33,15 +33,15 @@ func main() {
 	cert := "cert.pem"
 	key := "key.pem"
 
-	mux := http.NewServeMux()
+	mux := router.Router()
 
-	mux.HandleFunc("/", handlers.RootHandler)
+	// mux.HandleFunc("/", handlers.RootHandler)
 
-	mux.HandleFunc("/teachers/", handlers.TeacherHandler)
+	// mux.HandleFunc("/teachers/", handlers.TeacherHandler)
 
-	mux.HandleFunc("/students/", handlers.StudentHandler)
+	// mux.HandleFunc("/students/", handlers.StudentHandler)
 
-	mux.HandleFunc("/execs/", handlers.ExecHandler)
+	// mux.HandleFunc("/execs/", handlers.ExecHandler)
 
 	//Configuring TLS handshake begins.
 	tlsConfig := &tls.Config{

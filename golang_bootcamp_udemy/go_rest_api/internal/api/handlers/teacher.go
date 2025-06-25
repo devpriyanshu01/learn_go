@@ -11,23 +11,7 @@ import (
 	"strings"
 )
 
-func TeacherHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		getTeacherHandler(w, r)
-	case http.MethodPost:
-		addTeacherHandler(w, r)
-	case http.MethodPut:
-		updateTeacher(w, r)
-	case http.MethodPatch:
-		updateTeacherFields(w, r)
-	case http.MethodDelete:
-		deleteTeacher(w, r)
-	}
-
-}
-
-func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
+func AddTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	db, err := sqlconnect.ConnectDb() //connect to db
 	if err != nil {
 		http.Error(w, "Error Connecting to Database", http.StatusInternalServerError)
@@ -86,7 +70,7 @@ func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func getTeacherHandler(w http.ResponseWriter, r *http.Request) {
+func GetTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	//connect to database
 	db, err := sqlconnect.ConnectDb()
 	if err != nil {
@@ -200,7 +184,7 @@ func validateSortingField(splittedValue []string) bool {
 }
 
 // PUT - means to update complete row
-func updateTeacher(w http.ResponseWriter, r *http.Request) {
+func UpdateTeacher(w http.ResponseWriter, r *http.Request) {
 	reqUrl := r.URL.Path
 	idStr := strings.TrimPrefix(reqUrl, "/teachers/")
 	fmt.Println("id", idStr)
@@ -252,7 +236,7 @@ func updateTeacher(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func updateTeacherFields(w http.ResponseWriter, r *http.Request) {
+func UpdateTeacherFields(w http.ResponseWriter, r *http.Request) {
 	//get the sent id in url
 	reqUrl := r.URL.Path
 	idStr := strings.TrimPrefix(reqUrl, "/teachers/")
@@ -317,7 +301,7 @@ func updateTeacherFields(w http.ResponseWriter, r *http.Request) {
 }
 
 //delete teacher
-func deleteTeacher(w http.ResponseWriter, r *http.Request) {
+func DeleteTeacher(w http.ResponseWriter, r *http.Request) {
 	reqUrl := r.URL.Path
 	idStr := strings.TrimPrefix(reqUrl, "/teachers/")
 	teacherID, err := strconv.Atoi(idStr)
