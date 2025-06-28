@@ -23,6 +23,7 @@ func main() {
 	}
 
 	PORT := os.Getenv("API_PORT")
+	fmt.Println("printing port no", PORT)
 	db, err := sqlconnect.ConnectDb()
 	if err != nil {
 		fmt.Println("Error: ", err)

@@ -26,6 +26,6 @@ func ConnectDb() (*sql.DB, error) {
 	}
 
 	fmt.Println("Connected to MariaDB")
-	
+
 	return db, nil
 }
