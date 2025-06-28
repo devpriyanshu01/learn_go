@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"restapi/internal/models"
 	"restapi/internal/repository/sqlconnect"
 	"strconv"
@@ -274,6 +275,7 @@ func UpdateTeacherFields(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//update the existing teacher data with new values.
+	/*
 	for field, value := range toUpdate {
 		switch field {
 		case "first_name":
@@ -285,7 +287,21 @@ func UpdateTeacherFields(w http.ResponseWriter, r *http.Request) {
 		case "class":
 			existingTeacher.Class = value.(string)
 		case "subject":
-			existingTeacher.Subject = value.(string)
+			existingTeacher.Subject = value.(string)	
+		}
+	}*/
+
+	//code modification using reflect
+	//for now consider only one field will be sent to update at once.
+	teacherVal := reflect.ValueOf(&existingTeacher).Elem()
+	teacherType := teacherVal.Type()
+	for k, v := range toUpdate{
+		fieldCount := teacherVal.NumField()
+		for i := range fieldCount {
+			field := teacherType.Field(i)
+			if (k + ",omitempty") == field.Tag.Get("json") {
+				teacherVal.Field(i).Set(reflect.ValueOf(v).Convert(teacherVal.Field(i).Type()))	
+			}
 		}
 	}
 
