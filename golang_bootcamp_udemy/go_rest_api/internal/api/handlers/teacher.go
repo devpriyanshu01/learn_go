@@ -318,10 +318,9 @@ func UpdateTeacherFields(w http.ResponseWriter, r *http.Request) {
 }
 
 //delete teacher
-func DeleteTeacher(w http.ResponseWriter, r *http.Request) {
-	reqUrl := r.URL.Path
-	idStr := strings.TrimPrefix(reqUrl, "/teachers/")
-	teacherID, err := strconv.Atoi(idStr)
+func DeleteOneTeacher(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	teacherID, err := strconv.Atoi(id)
 	if err != nil {
 		http.Error(w, "Invalid teacher ID", http.StatusBadRequest)
 		return
@@ -462,6 +461,64 @@ func UpdateTeachersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
 
+func DeleteMultipleTeachers(w http.ResponseWriter, r *http.Request){
+	var idsToDelete []int
+	json.NewDecoder(r.Body).Decode(&idsToDelete)
+	if len(idsToDelete) < 1 {
+		http.Error(w, "No IDs were sent for deletion", http.StatusBadRequest)
+		return
+	}
 
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		http.Error(w, "Error connecting to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		http.Error(w, "Error initiating transaction", http.StatusInternalServerError)
+		return
+	}
+
+	deletedIds := make([]int, len(idsToDelete))
+	for i, id := range idsToDelete {
+
+		result, err := tx.Exec("DELETE FROM teachers WHERE id = ?", id)
+		if err != nil {
+			tx.Rollback()
+			http.Error(w, "Error deleting teacher", http.StatusInternalServerError)
+			return
+		}
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			http.Error(w, "Error getting rows affected", http.StatusInternalServerError)
+			return
+		}
+		if rowsAffected > 0 {
+			deletedIds[i] = id
+		}
+		if rowsAffected < 1 {
+			tx.Rollback()
+			http.Error(w, fmt.Sprintf("teacher with ID = %d not found/deleted", id), http.StatusInternalServerError)
+			return
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		http.Error(w, "Error committing transactions", http.StatusInternalServerError)
+		return
+	}
+
+	response := struct {
+		Status string `json:"status,omitempty"`
+		DeletedIds []int `json:"deletedIds,omitempty"`
+	}{
+		Status: "Successfully Deleted Teachers",
+		DeletedIds: deletedIds,
+	}
+	json.NewEncoder(w).Encode(response)
 }
