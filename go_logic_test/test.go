@@ -3,31 +3,70 @@ package main
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
-type student struct {
+// type student struct {
+// 	Name  string
+// 	Class int
+// }
+
+type Teacher struct {
 	Name string
-	Class int
+	Subject string `json:"subject,omitempty"`
+	Age 	int
 }
 
 func main() {
-	fmt.Println("main fn")
 
-	student1 := student{
-		Name : "raman",
-		Class : 2,
+	teacher1 := Teacher {
+		Name: "Raman",
+		Subject: "Computer Science",
+		Age : 21,
 	}
+	fmt.Println("teacher1", teacher1)
 
-	v := reflect.ValueOf(&student1).Elem()
-	fmt.Println("v", v)
-	t := v.Type()
-	fmt.Println("type", t)
-	fmt.Println("type at 0", v.Field(0).Type())
+	teacherVal := reflect.ValueOf(&teacher1).Elem()
+	teacherType := teacherVal.Type()
 
-	// data := make(map[string]string)
-	// data["first_name"] = "raman"
-	// fmt.Println(len(data))
-	// fmt.Println()
+	fmt.Println("teacherType", teacherType)	//main.Teacher
+	fmt.Println("teacherVal.Field(1) ------", teacherVal.Field(1).Type())
+	// fmt.Println("teacherType.Field(i)", teacherType.Field(1))
+	typeField := teacherType.Field(1)
+	fmt.Println(typeField.Tag.Get("json"))
+	str := typeField.Tag.Get("json")
+	trimedString := strings.TrimSuffix(str, ",omitempty")
+	fmt.Println("trimmed string", trimedString)
+
+	// fmt.Println("main fn")
+
+	// data := make(map[string]interface{})
+	
+	// data["id"] = 101
+	// data["name"] = "raman"
+
+	// id, ok := data["id"].(int)
+	// if !ok {
+	// 	fmt.Println("ERROR OCCURED")
+	// }else {
+	// 	fmt.Println("Value =", id)
+	// 	fmt.Println("ok = ", ok)
+	// }
+
+	// student1 := student{
+	// 	Name : "raman",
+	// 	Class : 2,
+	// }
+
+	// v := reflect.ValueOf(&student1).Elem()
+	// fmt.Println("v", v)
+	// t := v.Type()
+	// fmt.Println("type", t)
+	// fmt.Println("type at 0", v.Field(0).Type())
+
+	
+
+	
 
 	// student1 := student{
 	// 	Name : "raman",
