@@ -3,7 +3,10 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"reflect"
 	"restapi/internal/models"
 	"restapi/internal/repository/sqlconnect"
 	"strconv"
@@ -11,17 +14,72 @@ import (
 )
 
 func AddTeacherHandler(w http.ResponseWriter, r *http.Request) {
-	//store body in newTeacher struct
-	var newTeachers []models.Teacher
-	err := json.NewDecoder(r.Body).Decode(&newTeachers) //json to struct
+
+	//Reject the request with fields not acceptable.
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
-		fmt.Println("error occured ===>>", err)
+		http.Error(w, "Error reading body", http.StatusInternalServerError)
 		return
 	}
 
-	addedTeachers, shouldReturn := sqlconnect.AddTeachersDbHandler(w, newTeachers)
-	if shouldReturn {
+	var rawTeachers []map[string]interface{}
+	err = json.Unmarshal(body, &rawTeachers)
+	if err != nil {
+		http.Error(w, "Error unmarshalling the body", http.StatusInternalServerError)
+		fmt.Println("error -->", err)
+		return
+	}
+	log.Println("rawTeachers:", rawTeachers)
+
+	fields := []string{}
+	teacherType := reflect.TypeOf(models.Teacher{})
+
+	for i := 0; i < teacherType.NumField(); i++ {
+		field := teacherType.Field(i).Tag.Get("json")
+		field = strings.TrimSuffix(field, ",omitempty")
+
+		fields = append(fields, field)
+	}
+
+	fmt.Println("fields", fields)
+
+	allowedFields := make(map[string]struct{})
+	for _, field := range fields {
+		allowedFields[field] = struct{}{}
+	}
+
+	for _, teacher := range rawTeachers {
+		for key := range teacher {
+			_, ok := allowedFields[key]
+			if !ok {
+				http.Error(w, "Unacceptable fields found, send only allowed fields.", http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
+	//Check if none of the fields should be empty.
+	var newTeachers []models.Teacher
+	err = json.Unmarshal(body, &newTeachers)
+	if err != nil {
+		http.Error(w, "Error Unmarshalling the body to newTeachers", http.StatusInternalServerError)
+		return
+	}
+
+	for _, teacher := range newTeachers {
+		teacherVal := reflect.ValueOf(teacher)
+		for i := 0; i < teacherVal.NumField(); i++ {
+			fieldVal := teacherVal.Field(i)
+			if fieldVal.Interface() == "" {
+				http.Error(w, "No fields should be empty.", http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
+	addedTeachers, err := sqlconnect.AddTeachersDbHandler(newTeachers)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -46,9 +104,9 @@ func GetTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	trimmedValue := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	id := strings.TrimSuffix(trimmedValue, "/")
 
-	//connect to database
-	teachersList, shouldReturn := sqlconnect.GetTeachersDbHandler(w, id, r)
-	if shouldReturn {
+	teachersList, err := sqlconnect.GetTeachersDbHandler(id, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -86,8 +144,9 @@ func UpdateTeacher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//connect to Database
-	shouldReturn := sqlconnect.UpdateTeacherPutDbHandler(w, teacherId, receivedTeacher)
-	if shouldReturn {
+	err = sqlconnect.UpdateTeacherPutDbHandler(teacherId, receivedTeacher)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -118,8 +177,9 @@ func UpdateTeacherFieldsPatch(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println("to udpate", toUpdate)
 
-	existingTeacher, shouldReturn := sqlconnect.UpdateTeacherPatchDbHandler(w, teacherID, toUpdate)
-	if shouldReturn {
+	existingTeacher, err := sqlconnect.UpdateTeacherPatchDbHandler(teacherID, toUpdate)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -164,8 +224,9 @@ func UpdateTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println("PRINTING toUpdate", toUpdate)
 
-	shouldReturn := sqlconnect.UpdateMultipleTeachersDbHandler(w, toUpdate)
-	if shouldReturn {
+	err = sqlconnect.UpdateMultipleTeachersDbHandler(toUpdate)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
