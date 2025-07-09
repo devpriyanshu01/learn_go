@@ -20,7 +20,7 @@ func Router() *http.ServeMux {
 
 	// mux.HandleFunc("/students/", handlers.StudentHandler)
 	mux.HandleFunc("POST /student/", handlers.AddOneStudent)
-	// mux.HandleFunc("/students/", handlers.StudentHandler)
+	mux.HandleFunc("POST /students/", handlers.AddStudents)
 	// mux.HandleFunc("/students/", handlers.StudentHandler)
 
 

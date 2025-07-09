@@ -11,19 +11,21 @@ import (
 
 // check if any of the fields are empty.
 func checkIfFieldsEmpty(body []byte) error {
-	fmt.Println("Checking if any of the fields are empty")
-	studentData := models.Student{}
+	studentData := []models.Student{}
 	err := json.Unmarshal(body, &studentData)
+	fmt.Println("[]studentData", studentData)
 	if err != nil {
 		return utils.ErrorHandler(fmt.Errorf("ERROR UNMARSHALLING BODY TO MODELS.STUDENT"), "Error parsing the body")
 	}
-	//using reflect to iterate over all the fields.
-	studentVal := reflect.ValueOf(studentData)
+	for _, student := range studentData {
+		//using reflect to iterate over all the fields.
+		studentVal := reflect.ValueOf(student)
 
-	for i := 0; i < studentVal.NumField(); i++ {
-		field := studentVal.Field(i)
-		if field.Interface() == "" {
-			return fmt.Errorf("ONE OR MORE FIELDS ARE EMPTY")
+		for i := 0; i < studentVal.NumField(); i++ {
+			field := studentVal.Field(i)
+			if field.Interface() == "" {
+				return fmt.Errorf("ONE OR MORE FIELDS ARE EMPTY")
+			}
 		}
 	}
 	return nil
@@ -31,7 +33,7 @@ func checkIfFieldsEmpty(body []byte) error {
 
 // check if there are any unwanted fields.
 func checkUnwantedFields(body []byte) error {
-	var rawStudentData map[string]interface{}
+	var rawStudentData []map[string]interface{}
 
 	err := json.Unmarshal(body, &rawStudentData)
 	if err != nil {
@@ -55,10 +57,12 @@ func checkUnwantedFields(body []byte) error {
 		fieldValidator[field] = struct{}{}
 	}
 
-	for key := range rawStudentData {
-		_, ok := fieldValidator[key]
-		if !ok {
-			return utils.ErrorHandler(fmt.Errorf("UNWANTED FIELDS SENT"), "Unacceptable fields sent")
+	for _, student := range rawStudentData {
+		for key := range student {
+			_, ok := fieldValidator[key]
+			if !ok {
+				return utils.ErrorHandler(fmt.Errorf("UNWANTED FIELDS SENT"), "Unacceptable fields sent")
+			}
 		}
 	}
 
