@@ -52,7 +52,7 @@ func AddStudentsDbHandler(body []byte) ([]int, error) {
 	if err != nil {
 		return nil, utils.ErrorHandler(err, "Error initiating txn.")
 	}
-	
+
 	var insertedIds []int
 	for _, student := range students {
 		stmt, err := txn.Prepare("INSERT INTO students(first_name, last_name, email, class) VALUES(?, ?, ?, ?)")
@@ -82,4 +82,72 @@ func AddStudentsDbHandler(body []byte) ([]int, error) {
 	}
 
 	return insertedIds, nil
+}
+
+func DeleteOneStudentDbHandler(studentId int) (int, error) {
+	db, err := ConnectDb()
+	if err != nil {
+		return 0, utils.ErrorHandler(err, "failed to delete student")
+	}
+	result, err := db.Exec("DELETE FROM students where id = ?", studentId)
+	if err != nil {
+		return 0, utils.ErrorHandler(err, "failed to delete student2")
+	}
+	noRowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, utils.ErrorHandler(err, "failed to delete student3")
+	}
+	return int(noRowsAffected), nil
+}
+
+func GetOneStudentDbHandler(id int) (models.Student, error) {
+	db, err := ConnectDb()
+	if err != nil {
+		return models.Student{}, utils.ErrorHandler(err, "failed to get student1")
+	}
+
+	sqlRow := db.QueryRow("SELECT first_name, last_name, email, class FROM students where id = ?", id)
+
+	var student models.Student
+	err = sqlRow.Scan(&student.FirstName, &student.LastName, &student.Email, &student.Class)
+	if err != nil {
+		return models.Student{}, utils.ErrorHandler(err, "error getting a student")
+	}
+
+	return student, nil
+
+}
+
+func GetStudentsDbHandler(ids []int) ([]models.Student, error) {
+	db, err := ConnectDb()
+	if err != nil {
+		return []models.Student{}, utils.ErrorHandler(err, "error getting students1")
+	}
+
+	fmt.Printf("printing received ids: %v\n", ids)
+
+	var fetchedStudents []models.Student
+	trx, err := db.Begin()
+	if err != nil {
+		return []models.Student{}, utils.ErrorHandler(err, "error getting students2")
+	}
+
+	for _, id := range ids {
+		var student models.Student
+		fmt.Println("processing for id:", id)
+		sqlRow := db.QueryRow("SELECT first_name, last_name, email, class FROM students WHERE id = ?", id)
+		err = sqlRow.Scan(&student.FirstName, &student.LastName, &student.Email, &student.Class)
+		if err != nil {
+			trx.Rollback()
+			return []models.Student{}, utils.ErrorHandler(err, "error getting students3")
+		}
+		fmt.Println("one student", student)
+		fetchedStudents = append(fetchedStudents, student)
+	}
+	err = trx.Commit()
+	if err != nil {
+		return []models.Student{}, utils.ErrorHandler(err, "error getting students4")
+	}
+	return fetchedStudents, nil
+
 }

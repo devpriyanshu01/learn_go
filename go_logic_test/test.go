@@ -7,6 +7,7 @@ func main() {
 	a := '}'
 
 	getAsciiValue(a)
+   --TODO
 }
 
 func getAsciiValue(char rune) {

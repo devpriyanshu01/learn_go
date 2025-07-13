@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"restapi/internal/models"
 	"restapi/internal/repository/sqlconnect"
+	"strconv"
 )
 
 func AddOneStudent(w http.ResponseWriter, r *http.Request) {
@@ -74,5 +75,61 @@ func AddStudents(w http.ResponseWriter, r *http.Request) {
 	}
 	response := fmt.Sprintf("Students added with IDs - %v", insertedStudentIds)
 	w.Write([]byte(response))
+
+}
+
+func DeleteOneStudent(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid Student ID, it should be a a number", http.StatusBadRequest)
+		return
+	}
+	row, err := sqlconnect.DeleteOneStudentDbHandler(id)
+	if err != nil {
+		http.Error(w, "Error deleting student", http.StatusInternalServerError)
+		return
+	}
+	response := fmt.Sprintf("Deleted Successfully %d row", row)
+	w.Write([]byte(response))
+}
+
+func GetOneStudent(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid student ID", http.StatusBadRequest)
+	}
+
+	student, err := sqlconnect.GetOneStudentDbHandler(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(&student)
+
+}
+
+func GetStudents(w http.ResponseWriter, r *http.Request) {
+	studentIds := []int{}
+	err := json.NewDecoder(r.Body).Decode(&studentIds)
+	if err != nil {
+		http.Error(w, "error parsing the body", http.StatusBadRequest)
+		return
+	}
+
+	students, err := sqlconnect.GetStudentsDbHandler(studentIds)
+	fmt.Println("final students", students)
+	if err != nil {
+		http.Error(w, "error fetching studetns", http.StatusInternalServerError)
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(students)
+	if err != nil {
+		http.Error(w, "error encoding to response", http.StatusInternalServerError)
+		return
+	}
 
 }
