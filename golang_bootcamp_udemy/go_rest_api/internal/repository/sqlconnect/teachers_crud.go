@@ -367,3 +367,29 @@ func DeleteMultipleTeachersDbHandler(w http.ResponseWriter, idsToDelete []int) (
 	}
 	return deletedIds, false
 }
+
+func GetStudentsByTeacherIdDbHandler(teacherID int) ([]models.Student, error){
+	db, err := ConnectDb()
+	if err != nil {
+		return []models.Student{}, utils.ErrorHandler(err, "failed to retrieve students for this teacher")
+	}
+	defer db.Close()
+
+	var students []models.Student	//for storing students
+	query := "SELECT id, first_name, last_name, email, class FROM students WHERE class = (SELECT class FROM teachers WHERE id = ?)"
+	rows, err := db.Query(query, teacherID)
+	if err != nil {
+		return []models.Student{}, utils.ErrorHandler(err, "failed to retrieve students for this teacher")
+	}
+
+	for rows.Next() {
+		var student models.Student
+		err = rows.Scan(&student.ID, &student.FirstName, &student.LastName, &student.Email, &student.Class)
+		if err != nil {
+			return []models.Student{}, utils.ErrorHandler(err, "failed to retrieve students for this teacher")
+		}
+		students = append(students, student)
+	}
+
+	return students, nil
+}

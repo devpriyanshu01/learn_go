@@ -152,3 +152,38 @@ func UpdateOneStudent(w http.ResponseWriter, r *http.Request) {
 
 	w.Write([]byte("student updated"))
 }
+
+func GetStudentsByTeachersId(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	teacherID, err  := strconv.Atoi(id)
+	if err != nil {
+		http.Error(w, "Invalid Teacher ID", http.StatusBadRequest)
+		return
+	}
+	var students []models.Student
+	students, err = sqlconnect.GetStudentsByTeacherIdDbHandler(teacherID)
+	if err != nil {
+		http.Error(w, "failed to get students list", http.StatusInternalServerError)
+		return
+	}
+	fmt.Println("printing students:", students)
+	fmt.Println("len of students", len(students))
+	
+	response := struct {
+		Status string `json:"status,omitempty"`
+		Count int `json:"count,omitempty"`
+		Data []models.Student `json:"data,omitempty"`
+	}{
+		Status: "success",
+		Count: len(students),
+		Data: students,
+	}
+
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		http.Error(w, "Failed to send response", http.StatusInternalServerError)
+		return
+	}
+}
+
+
