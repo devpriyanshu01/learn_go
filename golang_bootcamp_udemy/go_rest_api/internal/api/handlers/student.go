@@ -133,3 +133,22 @@ func GetStudents(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
+
+func UpdateOneStudent(w http.ResponseWriter, r *http.Request) {
+	var toUpdate map[string]interface{}
+	fmt.Println("inside update one student")
+	err := json.NewDecoder(r.Body).Decode(&toUpdate)
+	fmt.Println("toUpdate", toUpdate)
+	if err != nil {
+		http.Error(w, "error parsing the body", http.StatusBadRequest)
+		return
+	}
+
+	err = sqlconnect.UpdateOneStudentDbHandler(toUpdate)
+	if err != nil {
+		http.Error(w, "failed to update student", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte("student updated"))
+}

@@ -3,8 +3,10 @@ package sqlconnect
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"restapi/internal/models"
 	"restapi/pkg/utils"
+	"strings"
 )
 
 func AddOneStudentDbHandler(studentData models.Student) (int, error) {
@@ -149,5 +151,50 @@ func GetStudentsDbHandler(ids []int) ([]models.Student, error) {
 		return []models.Student{}, utils.ErrorHandler(err, "error getting students4")
 	}
 	return fetchedStudents, nil
+}
 
+func UpdateOneStudentDbHandler(toUpdate map[string]interface{}) error {
+	db, err := ConnectDb()
+	if err != nil {
+		return utils.ErrorHandler(err, "failed to update student")
+	}
+	defer db.Close()
+
+	var currStudent models.Student
+	err = db.QueryRow("SELECT id, first_name, last_name, email, class FROM students WHERE id = ?", toUpdate["id"]).Scan(&currStudent.ID, &currStudent.FirstName, &currStudent.LastName, &currStudent.Email, &currStudent.Class)
+
+	if err != nil {
+		return utils.ErrorHandler(err, "failed to update student")
+	}
+
+	fmt.Println("current student from db ->", currStudent)
+
+	currStudentVal := reflect.ValueOf(&currStudent).Elem()
+	currStudentType := currStudentVal.Type()
+
+	for key, value := range toUpdate {
+		if key == "id" {
+			continue
+		}
+		for i := 0; i < currStudentVal.NumField(); i++ {
+			tag := currStudentType.Field(i).Tag.Get("json")
+			tag = strings.TrimSuffix(tag, ",omitempty")
+
+			if tag == key {
+				if currStudentVal.Field(i).CanSet() {
+					currStudentVal.Field(i).SetString(value.(string))
+				}
+			}
+		}
+	}
+
+	fmt.Println("printing currStudent updated", currStudent)
+
+	//update db
+	_, err = db.Exec("UPDATE students SET first_name = ?, last_name = ?, email = ?, class = ? WHERE id = ?", currStudent.FirstName, currStudent.LastName, currStudent.Email, currStudent.Class, currStudent.ID)
+	if err != nil {
+		return utils.ErrorHandler(err, "failed to update student data")
+	}
+
+	return nil
 }
