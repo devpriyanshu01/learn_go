@@ -393,3 +393,20 @@ func GetStudentsByTeacherIdDbHandler(teacherID int) ([]models.Student, error){
 
 	return students, nil
 }
+
+func GetStudentCountForaTeacherDbHandler(teacherID int) (int, error) {
+	db, err := ConnectDb()
+	if err != nil {
+		return 0, utils.ErrorHandler(err, "failed to fetch student count")
+	}
+	defer db.Close()
+
+	var studentCount int
+	query := "SELECT COUNT(*) FROM students WHERE class = (SELECT class FROM teachers WHERE id = ?)"
+	err = db.QueryRow(query, teacherID).Scan(&studentCount)
+	if err != nil {
+		return 0, utils.ErrorHandler(err, "failed to fetch student count")
+	}
+
+	return studentCount, nil
+}
