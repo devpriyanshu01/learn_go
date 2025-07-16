@@ -34,7 +34,7 @@ func main() {
 	cert := "cert.pem"
 	key := "key.pem"
 
-	mux := router.Router()
+	mux := router.MainRouter()
 
 	// mux.HandleFunc("/", handlers.RootHandler)
 
