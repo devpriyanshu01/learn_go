@@ -5,9 +5,24 @@ import (
 	"restapi/internal/api/handlers"
 )
 
-func execRouter() *http.ServeMux {
+func execsRouter() *http.ServeMux {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/execs/", handlers.ExecHandler)
+	mux.HandleFunc("GET /execs", handlers.GetExecsHandler)
+	mux.HandleFunc("POST /execs", handlers.AddExecsHandler)
+	mux.HandleFunc("PATCH /execs", handlers.PatchExecsHandler)
+
+	mux.HandleFunc("GET /execs/{id}", handlers.GetOneExecHandler)
+	mux.HandleFunc("PATCH /execs/{id}", handlers.PatchOneExecHandler)
+	mux.HandleFunc("DELETE /execs/{id}", handlers.DeleteOneExecHandler)
+	mux.HandleFunc("POST /execs/{id}/updatepassword", handlers.UpdatePasswordHandler)
+
+	mux.HandleFunc("POST /execs/login", handlers.LoginHandler)
+	mux.HandleFunc("POST /execs/login2", handlers.LoginHandler2)
+	mux.HandleFunc("POST /execs/logout", handlers.LogoutHandler)
+	mux.HandleFunc("POST /execs/logout2", handlers.LogoutHandler2)
+	mux.HandleFunc("POST /execs/forgotpassword", handlers.ForgotPasswordHandler)
+	mux.HandleFunc("POST /execs/resetpassword/reset/{resetcode}", handlers.ResetPasswordHandler)
+
 	return mux
 }
