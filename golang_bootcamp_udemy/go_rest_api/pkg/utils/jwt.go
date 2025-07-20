@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"log"
 	"os"
 	"time"
 
@@ -16,6 +17,8 @@ func SignToken(userId int, username, role string) (string, error) {
 		"user": username,
 		"role": role,
 	}
+
+	log.Println("claims printing: ---------", claims)
 
 	if jwtExpiresIn != "" {
 		duration, err := time.ParseDuration(jwtExpiresIn)
