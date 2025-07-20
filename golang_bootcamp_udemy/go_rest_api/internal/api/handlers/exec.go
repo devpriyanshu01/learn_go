@@ -526,4 +526,121 @@ func LogoutHandler2(w http.ResponseWriter, r *http.Request) {
 		Expires: time.Unix(0,0),
 		SameSite: http.SameSiteStrictMode,
 	})
+
+	w.Write([]byte("Logout successful"))
+}
+
+func UpdatePassword2(w http.ResponseWriter, r *http.Request) {
+	var req models.UpdatePasswordRequest
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Invalid Body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if req.CurrentPassword == "" || req.NewPassword == "" {
+		http.Error(w, "CurrPassword and NewPassword can't be empty", http.StatusBadRequest)
+		return
+	}
+
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "failed to parse id", http.StatusInternalServerError)
+		return
+	}
+
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		http.Error(w, "failed connection with database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	var username, password, role string
+	query := "SELECT username, password, role FROM execs WHERE id = ?"
+	err = db.QueryRow(query, id).Scan(&username, &password, &role)
+	if err != nil {
+		http.Error(w, "failed to fetch curr user", http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Println("username", username)
+	fmt.Println("password", password)
+
+	saltAndHash := strings.Split(password, ".")
+	saltBase64Encoded := saltAndHash[0]
+	hashBase64Encoded := saltAndHash[1]
+
+	if len(saltAndHash) != 2 {
+		http.Error(w, "Invalid Password String", http.StatusInternalServerError)
+		return
+	}
+
+	//base64 to hash value
+	hash, err := base64.StdEncoding.DecodeString(hashBase64Encoded)
+	if err != nil {
+		http.Error(w, "failed to decode hash", http.StatusInternalServerError)
+		return
+	}
+
+	//encoded salt to salt
+	salt, err := base64.StdEncoding.DecodeString(saltBase64Encoded)
+	if err != nil {
+		http.Error(w, "failed to decode salt", http.StatusInternalServerError)
+		return
+	}
+	
+	//convert sent_password to hash and compare
+	hashPassword := argon2.IDKey([]byte(req.CurrentPassword), salt, 1, 64*1024, 4, 32)
+	
+	if len(hashPassword) != len(hash){
+		http.Error(w, "Wrong Password Entered", http.StatusUnauthorized)
+		return
+	}
+
+	if subtle.ConstantTimeCompare(hash, hashPassword) == 1 {
+		//do nothing
+	}else {
+		http.Error(w, "Invalid Password", http.StatusUnauthorized)
+		return
+	}
+
+	//Now we can store new_password to database
+	newPassword := req.NewPassword
+	newPasswordHashed := argon2.IDKey([]byte(newPassword), salt, 1, 64*1024, 4, 32)
+	
+	newSaltEncoded := base64.StdEncoding.EncodeToString(salt)
+	newPasswordHashedEncoded := base64.StdEncoding.EncodeToString(newPasswordHashed)
+
+	finalNewPassword := fmt.Sprintf("%s.%s", newSaltEncoded, newPasswordHashedEncoded)
+
+	updateQuery := "UPDATE execs SET password = ? WHERE id = ?"
+	_, err = db.Exec(updateQuery, finalNewPassword, id)
+	if err != nil {
+		http.Error(w, "failed to save new password to db", http.StatusInternalServerError)
+		return
+	}
+
+	token, err := utils.SignToken(id, username, role)
+	if err != nil {
+		http.Error(w, "failed to generate token after saving new password", http.StatusInternalServerError)
+		return
+	}
+
+	
+	//send token as a cookie
+	http.SetCookie(w, &http.Cookie{
+		Name: "Bearer",
+		Value: token,
+		Path: "/",
+		HttpOnly: true,
+		Secure: true,
+		Expires: time.Now().Add(24 * time.Hour),
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	w.Write([]byte("Password Updated Successfully"))
 }
