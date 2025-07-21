@@ -1,14 +1,18 @@
 package handlers
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"restapi/internal/models"
 	"restapi/internal/repository/sqlconnect"
 	"restapi/pkg/utils"
@@ -16,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-mail/mail/v2"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -643,4 +648,89 @@ func UpdatePassword2(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.Write([]byte("Password Updated Successfully"))
+}
+
+func ResetPasswordHandler2(w http.ResponseWriter, r * http.Request) {
+	var req struct {
+		Email string `json:"email"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Incorrect email sent", http.StatusBadRequest)
+		return
+	}
+	log.Println("received email", req.Email)
+
+	defer r.Body.Close()
+
+	db,	err := sqlconnect.ConnectDb()
+	if err != nil {
+		http.Error(w, "failed to connect to db", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	var exec models.Exec
+	err = db.QueryRow("SELECT id FROM execs WHERE email = ?", req.Email).Scan(&exec.Email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "This email is not registered", http.StatusForbidden)
+			return
+		}
+		http.Error(w, "Faild to retrieve details with provided email", http.StatusInternalServerError)
+		return
+	}
+
+	duration, err := strconv.Atoi(os.Getenv("RESET_TOKEN_EXP_DURATION"))
+	if err != nil {
+		http.Error(w, "error retrieving duration from .env", http.StatusInternalServerError)
+		return
+	}
+
+	mins := time.Duration(duration)
+	expiry := time.Now().Add(mins * time.Minute).Format(time.RFC3339)
+	
+	tokenBytes := make([]byte, 32)
+	_, err = rand.Read(tokenBytes)
+	if err != nil {
+		http.Error(w, "error reading bytes", http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("token bytes:", tokenBytes)
+	token := hex.EncodeToString(tokenBytes)
+	log.Println("token:", token)
+
+	hashToken := sha256.Sum256(tokenBytes)
+	log.Println("hashToken:", hashToken )
+
+	hashedTokenString := hex.EncodeToString(hashToken[:])
+
+	_, err = db.Exec("UPDATE execs SET password_reset_token = ?,  password_token_expires = ? WHERE id = ?", hashedTokenString, expiry, exec.ID)
+	if err != nil {
+		http.Error(w, "failed to update fields in db", http.StatusInternalServerError)
+		return
+	}
+
+	//send the rest email
+	resetUrl := fmt.Sprintf("https://localhost:3000/execs/resetpassword/reset2/%s", token)
+	message := fmt.Sprintf("Forgot your password? Reset your password using the following link: \n%s\nIf you didn't request a password reset, please ignore this email. This link is only valid for %d mintues.", resetUrl, int(mins))	
+
+	m := mail.NewMessage()
+	m.SetHeader("From", "schooladmin@school.com")
+	m.SetHeader("To", req.Email)
+	m.SetHeader("Subject", "Your password reset link")
+	m.SetBody("text/plain", message)
+	d := mail.NewDialer("localhost", 1025, "", "")
+
+	err = d.DialAndSend(m)
+
+	if err != nil {
+		http.Error(w, "failed to send password reset email", http.StatusInternalServerError)
+		log.Println("error sending email --------->", err)
+		return
+	}
+
+	fmt.Fprintf(w, "Password reset link to %s", req.Email)
 }
