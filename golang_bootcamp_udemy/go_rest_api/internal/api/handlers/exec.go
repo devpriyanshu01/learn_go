@@ -406,7 +406,7 @@ func ResetPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Password reset successfully")
 }
 
-//my login handler 2
+// my login handler 2
 func LoginHandler2(w http.ResponseWriter, r *http.Request) {
 	//data validation
 	var req models.Exec
@@ -440,7 +440,7 @@ func LoginHandler2(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to fetch the user", http.StatusInternalServerError)
 		return
 	}
-	
+
 	//check if user is active
 	if currUser.InactiveStatus {
 		http.Error(w, "User is inactive", http.StatusForbidden)
@@ -478,11 +478,10 @@ func LoginHandler2(w http.ResponseWriter, r *http.Request) {
 
 	if subtle.ConstantTimeCompare(hash, decodedHash) == 1 {
 		//do nothing
-	}else {
+	} else {
 		http.Error(w, "Incorrect Password", http.StatusForbidden)
 		return
 	}
-
 
 	//generate token
 	tokenString, err := utils.SignToken(currUser.ID, currUser.Username, currUser.Role)
@@ -493,22 +492,22 @@ func LoginHandler2(w http.ResponseWriter, r *http.Request) {
 
 	//send token as a response or a cookie
 	http.SetCookie(w, &http.Cookie{
-		Name: "Bearer",
-		Value: tokenString,
-		Path: "/",
+		Name:     "Bearer",
+		Value:    tokenString,
+		Path:     "/",
 		HttpOnly: true,
-		Secure: true,
-		Expires: time.Now().Add(24 * time.Hour),
+		Secure:   true,
+		Expires:  time.Now().Add(24 * time.Hour),
 		SameSite: http.SameSiteStrictMode,
 	})
 
 	http.SetCookie(w, &http.Cookie{
-		Name: "testabc",
-		Value: "testing123",
-		Path: "/",
+		Name:     "testabc",
+		Value:    "testing123",
+		Path:     "/",
 		HttpOnly: true,
-		Secure: true,
-		Expires: time.Now().Add(24 * time.Hour),
+		Secure:   true,
+		Expires:  time.Now().Add(24 * time.Hour),
 		SameSite: http.SameSiteStrictMode,
 	})
 
@@ -523,12 +522,12 @@ func LoginHandler2(w http.ResponseWriter, r *http.Request) {
 
 func LogoutHandler2(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
-		Name: "Bearer",
-		Value: "",
-		Path: "/",
+		Name:     "Bearer",
+		Value:    "",
+		Path:     "/",
 		HttpOnly: true,
-		Secure: true,
-		Expires: time.Unix(0,0),
+		Secure:   true,
+		Expires:  time.Unix(0, 0),
 		SameSite: http.SameSiteStrictMode,
 	})
 
@@ -597,18 +596,18 @@ func UpdatePassword2(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to decode salt", http.StatusInternalServerError)
 		return
 	}
-	
+
 	//convert sent_password to hash and compare
 	hashPassword := argon2.IDKey([]byte(req.CurrentPassword), salt, 1, 64*1024, 4, 32)
-	
-	if len(hashPassword) != len(hash){
+
+	if len(hashPassword) != len(hash) {
 		http.Error(w, "Wrong Password Entered", http.StatusUnauthorized)
 		return
 	}
 
 	if subtle.ConstantTimeCompare(hash, hashPassword) == 1 {
 		//do nothing
-	}else {
+	} else {
 		http.Error(w, "Invalid Password", http.StatusUnauthorized)
 		return
 	}
@@ -616,7 +615,7 @@ func UpdatePassword2(w http.ResponseWriter, r *http.Request) {
 	//Now we can store new_password to database
 	newPassword := req.NewPassword
 	newPasswordHashed := argon2.IDKey([]byte(newPassword), salt, 1, 64*1024, 4, 32)
-	
+
 	newSaltEncoded := base64.StdEncoding.EncodeToString(salt)
 	newPasswordHashedEncoded := base64.StdEncoding.EncodeToString(newPasswordHashed)
 
@@ -635,22 +634,21 @@ func UpdatePassword2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	
 	//send token as a cookie
 	http.SetCookie(w, &http.Cookie{
-		Name: "Bearer",
-		Value: token,
-		Path: "/",
+		Name:     "Bearer",
+		Value:    token,
+		Path:     "/",
 		HttpOnly: true,
-		Secure: true,
-		Expires: time.Now().Add(24 * time.Hour),
+		Secure:   true,
+		Expires:  time.Now().Add(24 * time.Hour),
 		SameSite: http.SameSiteStrictMode,
 	})
 
 	w.Write([]byte("Password Updated Successfully"))
 }
 
-func ResetPasswordHandler2(w http.ResponseWriter, r * http.Request) {
+func ForgotPasswordHandler2(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email string `json:"email"`
 	}
@@ -664,7 +662,7 @@ func ResetPasswordHandler2(w http.ResponseWriter, r * http.Request) {
 
 	defer r.Body.Close()
 
-	db,	err := sqlconnect.ConnectDb()
+	db, err := sqlconnect.ConnectDb()
 	if err != nil {
 		http.Error(w, "failed to connect to db", http.StatusInternalServerError)
 		return
@@ -672,7 +670,7 @@ func ResetPasswordHandler2(w http.ResponseWriter, r * http.Request) {
 	defer db.Close()
 
 	var exec models.Exec
-	err = db.QueryRow("SELECT id FROM execs WHERE email = ?", req.Email).Scan(&exec.Email)
+	err = db.QueryRow("SELECT id FROM execs WHERE email = ?", req.Email).Scan(&exec.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "This email is not registered", http.StatusForbidden)
@@ -690,7 +688,7 @@ func ResetPasswordHandler2(w http.ResponseWriter, r * http.Request) {
 
 	mins := time.Duration(duration)
 	expiry := time.Now().Add(mins * time.Minute).Format(time.RFC3339)
-	
+
 	tokenBytes := make([]byte, 32)
 	_, err = rand.Read(tokenBytes)
 	if err != nil {
@@ -698,16 +696,19 @@ func ResetPasswordHandler2(w http.ResponseWriter, r * http.Request) {
 		return
 	}
 
-	log.Println("token bytes:", tokenBytes)
+	log.Println("token bytes:", string(tokenBytes))
+	//randBytes to string token conversion
 	token := hex.EncodeToString(tokenBytes)
 	log.Println("token:", token)
 
+	//randBytes to hash conversion
 	hashToken := sha256.Sum256(tokenBytes)
-	log.Println("hashToken:", hashToken )
+	log.Println("hashToken:", hashToken)
 
+	//hash to string conversion
 	hashedTokenString := hex.EncodeToString(hashToken[:])
 
-	_, err = db.Exec("UPDATE execs SET password_reset_token = ?,  password_token_expires = ? WHERE id = ?", hashedTokenString, expiry, exec.ID)
+	_, err = db.Exec("UPDATE execs SET password_reset_token = ?, password_token_expires = ? WHERE id = ?", hashedTokenString, expiry, exec.ID)
 	if err != nil {
 		http.Error(w, "failed to update fields in db", http.StatusInternalServerError)
 		return
@@ -715,7 +716,7 @@ func ResetPasswordHandler2(w http.ResponseWriter, r * http.Request) {
 
 	//send the rest email
 	resetUrl := fmt.Sprintf("https://localhost:3000/execs/resetpassword/reset2/%s", token)
-	message := fmt.Sprintf("Forgot your password? Reset your password using the following link: \n%s\nIf you didn't request a password reset, please ignore this email. This link is only valid for %d mintues.", resetUrl, int(mins))	
+	message := fmt.Sprintf("Forgot your password? Reset your password using the following link: \n%s\nIf you didn't request a password reset, please ignore this email. This link is only valid for %d mintues.", resetUrl, int(mins))
 
 	m := mail.NewMessage()
 	m.SetHeader("From", "schooladmin@school.com")
@@ -733,4 +734,82 @@ func ResetPasswordHandler2(w http.ResponseWriter, r * http.Request) {
 	}
 
 	fmt.Fprintf(w, "Password reset link to %s", req.Email)
+}
+
+func ResetPasswordHandler2(w http.ResponseWriter, r *http.Request) {
+	token := r.PathValue("resetcode")
+	log.Println("resetcode :----", token)
+
+	type request struct {
+		NewPassword     string `json:"new_password"`
+		ConfirmPassword string `json:"confirm_password"`
+	}
+
+	var req request
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "failed to pasrse the body", http.StatusBadRequest)
+		log.Println("error parsing the body :----", err)
+		return
+	}
+
+	if req.NewPassword == "" || req.ConfirmPassword == "" {
+		http.Error(w, "new_password or confirm_password can't be empty", http.StatusBadRequest)
+		return
+	}
+
+	if req.NewPassword != req.ConfirmPassword {
+		http.Error(w, "new_password and confirm_password should match", http.StatusBadRequest)
+		return
+	}
+
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		http.Error(w, "failed to connect to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	var user models.Exec
+	bytes, err := hex.DecodeString(token)
+	if err != nil {
+		http.Error(w, "failed decoding sent token", http.StatusInternalServerError)
+		return
+	}
+	log.Println("decoded token string:-----", string(bytes))
+
+	//hash the above []byte
+	hashedToken := sha256.Sum256(bytes)
+	hashedTokenString := hex.EncodeToString(hashedToken[:])
+
+	query := "SELECT id, email FROM execs WHERE password_reset_token = ? AND password_token_expires > ?"
+
+	err = db.QueryRow(query, hashedTokenString, time.Now().Format(time.RFC3339)).Scan(&user.ID, &user.Email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "no rows for given query", http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, "failed to receive id and email from db", http.StatusInternalServerError)
+		log.Println("error getting id, email from db :------", err)
+		return
+	}
+
+	//Hash the new_password
+	hashedNewPassword, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		http.Error(w, "failed to hash new_password", http.StatusInternalServerError)
+		return
+	}
+
+	updateQuery := "UPDATE execs SET password = ?, password_reset_token = NULL, password_token_expires = NULL, password_changed_at = ? WHERE id = ?"
+
+	_, err = db.Exec(updateQuery, hashedNewPassword, time.Now().Format(time.RFC3339), user.ID)
+	if err != nil {
+		http.Error(w, "failed to update password", http.StatusInternalServerError)
+		log.Println("error updating password :------", err)
+		return
+	}
+
+	fmt.Fprintf(w, "Password reset successfully")
 }
